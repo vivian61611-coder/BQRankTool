@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8"><title>排行榜 JSON 智慧修復版 v3.0</title>
+    <style>
+        :root { --primary-color: #2563eb; --bg-color: #f1f5f9; --text-color: #0f172a; }
+        body { font-family: sans-serif; background-color: var(--bg-color); padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 20px; }
+        .json-textarea { width: 100%; height: 200px; font-family: monospace; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; background: var(--primary-color); color: white; }
+        .json-preview { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; font-family: monospace; white-space: pre; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🎁 獎勵設定 (支援自動修正多餘逗號)</h2>
+        <textarea id="json_input" class="json-textarea" placeholder='請貼上 JSON... [ { "rank": 1, }, ]'></textarea>
+        <button class="btn" onclick="smartRepair()">✨ 智慧修復並套用</button>
+    </div>
+    <div class="card"><h3>修復後預覽</h3><div id="preview" class="json-preview"></div></div>
+<script>
+    function smartRepair() {
+        let input = document.getElementById('json_input').value.trim();
+        try {
+            // 修復多餘逗號
+            input = input.replace(/,\s*([\]}])/g, '$1');
+            const parsed = JSON.parse(input);
+            document.getElementById('preview').innerText = JSON.stringify(parsed, null, 2);
+            alert("修復成功！");
+        } catch(e) { alert("修復失敗：" + e.message); }
+    }
+</script>
+</body>
+</html>

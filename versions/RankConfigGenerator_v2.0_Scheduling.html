@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排行榜 JSON 多檔排程工具 v2.0</title>
+    <style>
+        :root { --primary-color: #2563eb; --bg-color: #f1f5f9; --card-bg: #ffffff; --border-color: #cbd5e1; --text-color: #0f172a; }
+        body { font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 300px; background: #1e293b; color: white; display: flex; flex-direction: column; border-right: 1px solid #0f172a; }
+        .sidebar-header { padding: 20px; background: #0f172a; }
+        .round-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .round-item { padding: 12px 15px; margin-bottom: 8px; background: #334155; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .round-item.active { background: var(--primary-color); }
+        .main-content { flex: 1; overflow-y: auto; padding: 20px 40px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        label { font-weight: 600; font-size: 0.8rem; color: #64748b; }
+        input, select, textarea { padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9rem; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .json-preview { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; white-space: pre; overflow: auto; max-height: 400px; }
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <div class="sidebar-header"><button class="btn btn-primary" style="width:100%" onclick="addNewRound()">+ 新增輪次</button></div>
+    <div class="round-list" id="round_list_ui"></div>
+    <div style="padding:20px; border-top: 1px solid #0f172a;"><button class="btn btn-success" style="width:100%" onclick="downloadJson()">💾 匯出全部</button></div>
+</div>
+<div class="main-content">
+    <header><h2 id="editing_title">正在編輯</h2><button class="btn" onclick="cloneCurrentRound()">👯 複製目前</button></header>
+    <div class="grid">
+        <div class="card"><div class="form-group"><label>Round ID</label><input type="text" id="round_id" oninput="handleInput(event, 'round_id')"></div></div>
+        <div class="card"><div class="form-group"><label>開始時間</label><input type="datetime-local" id="start_dt_picker" onchange="handleDateInput(event, 'start_dt')"></div></div>
+    </div>
+    <div class="card"><h3>單筆預覽</h3><div class="json-preview" id="preview"></div></div>
+</div>
+<script>
+    let rounds = [{round_id: "ROUND_1", start_dt: 202601010000}], currentIndex = 0;
+    function renderList() {
+        const ui = document.getElementById('round_list_ui'); ui.innerHTML = '';
+        rounds.forEach((r, i) => {
+            const div = document.createElement('div'); div.className = `round-item ${i === currentIndex ? 'active' : ''}`;
+            div.onclick = () => { currentIndex = i; loadRound(); renderList(); };
+            div.innerHTML = `<span>${r.round_id}</span>`; ui.appendChild(div);
+        });
+    }
+    function loadRound() { 
+        const r = rounds[currentIndex]; document.getElementById('round_id').value = r.round_id;
+        const s = String(r.start_dt); document.getElementById('start_dt_picker').value = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(8,10)}:${s.slice(10,12)}`;
+        updatePreview();
+    }
+    function handleInput(e, f) { rounds[currentIndex][f] = e.target.value; renderList(); updatePreview(); }
+    function handleDateInput(e, f) { rounds[currentIndex][f] = parseInt(e.target.value.replace(/[-T:]/g, '')); updatePreview(); }
+    function addNewRound() { rounds.push({round_id: "NEW", start_dt: 202601010000}); currentIndex = rounds.length-1; renderList(); loadRound(); }
+    function cloneCurrentRound() { rounds.push({...rounds[currentIndex]}); currentIndex = rounds.length-1; renderList(); loadRound(); }
+    function updatePreview() { document.getElementById('preview').innerText = JSON.stringify(rounds[currentIndex], null, 2); }
+    function downloadJson() { const b = new Blob([JSON.stringify(rounds, null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'config.json'; a.click(); }
+    renderList(); loadRound();
+</script>
+</body>
+</html>

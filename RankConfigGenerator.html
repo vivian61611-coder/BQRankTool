@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排行榜 JSON 營運設定工具 (道具選單增強版)</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary-color: #2563eb; --secondary-color: #6366f1; --bg-color: #f1f5f9; --card-bg: #ffffff; --border-color: #cbd5e1; --text-color: #0f172a; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 320px; background: #1e293b; color: white; display: flex; flex-direction: column; border-right: 1px solid #0f172a; }
+        .sidebar-header { padding: 20px; background: #0f172a; }
+        .round-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .round-item { padding: 12px 15px; margin-bottom: 8px; background: #334155; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+        .round-item.active { background: var(--primary-color); }
+        .main-content { flex: 1; overflow-y: auto; padding: 25px 40px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .section-title { font-size: 1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary-color); border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        label { font-weight: 600; font-size: 0.8rem; color: #64748b; }
+        input, select, textarea { padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.9rem; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-secondary { background: var(--secondary-color); color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-ghost { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .btn-sm { padding: 4px 8px; font-size: 0.7rem; }
+        .json-preview { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; white-space: pre; overflow: auto; max-height: 400px; }
+        .item-badge { background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-top: 4px; display: block; font-weight: bold; }
+        .prize-item { background: #f8fafc; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .reward-row { display: grid; grid-template-columns: 1.5fr 1fr auto; gap: 8px; margin-top: 5px; align-items: start; }
+        .status-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-top: 5px; display: inline-block; }
+        .status-ready { background: #dcfce7; color: #166534; }
+        .status-none { background: #fef2f2; color: #991b1b; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 5% auto; padding: 25px; border-radius: 12px; width: 65%; max-height: 85%; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h3 style="margin:0 0 10px 0">排行榜設定清單</h3>
+        <button class="btn btn-primary" style="width:100%" onclick="addNewRound()">+ 新增活動輪次</button>
+        <button class="btn btn-secondary" style="width:100%; margin-top:12px" onclick="showImportModal()">📥 匯入正式 JSON</button>
+        <button class="btn btn-secondary" style="width:100%; margin-top:10px" onclick="document.getElementById('item_file_input').click()">📊 匯入道具對照表 (.xlsx)</button>
+        <div id="item_status" class="status-tag status-none">❌ 尚未匯入道具對照表</div>
+        <input type="file" id="item_file_input" style="display:none" accept=".xlsx,.csv" onchange="handleItemFile(event)">
+    </div>
+    <div class="round-list" id="round_list_ui"></div>
+    <div style="padding:20px; border-top: 1px solid #0f172a;">
+        <div class="form-group">
+            <label style="color:#94a3b8">JSON 群組名稱</label>
+            <input type="text" id="group_name" value="260213_排行榜_設定" oninput="updatePreview()">
+        </div>
+        <button class="btn btn-success" style="width:100%" onclick="downloadJson()">💾 匯出全部 JSON</button>
+    </div>
+</div>
+
+<!-- Main Area -->
+<div class="main-content">
+    <header><h2 id="editing_title">正在編輯：未命名活動</h2><button class="btn btn-ghost" onclick="cloneCurrentRound()">👯 複製目前活動</button></header>
+    <div class="grid">
+        <div class="card">
+            <div class="section-title">1. 基本識別與邏輯</div>
+            <div class="form-group"><label>Round ID</label><input type="text" id="round_id" oninput="handleInput(event, 'round_id')"></div>
+            <div class="grid">
+                <div class="form-group"><label>Category</label><select id="category" onchange="handleInput(event, 'category')"><option value="EVENT">EVENT</option><option value="SLOT">SLOT</option><option value="SHOOTING">SHOOTING</option></select></div>
+                <div class="form-group"><label>Sub Category</label><input type="text" id="sub_category" oninput="handleInput(event, 'sub_category')"></div>
+            </div>
+            <div class="form-group"><label>Procedure ID</label><input type="text" id="bq_procedure_id" oninput="handleInput(event, 'bq_procedure_id')"></div>
+            <div class="form-group"><label>BQ Params</label><input type="text" id="bq_extra_params_raw" oninput="handleInput(event, 'bq_extra_params_raw')"></div>
+        </div>
+        <div class="card">
+            <div class="section-title">2. 時間排程 (24H制)</div>
+            <div class="grid">
+                <div class="form-group"><label>開始時間</label><input type="datetime-local" id="start_dt_picker" step="60" onchange="handleDateInput(event, 'start_dt')"></div>
+                <div class="form-group"><label>結束時間</label><input type="datetime-local" id="end_dt_picker" step="60" onchange="handleDateInput(event, 'end_dt')"></div>
+            </div>
+            <div class="form-group"><label>置獎時間</label><input type="datetime-local" id="reward_dt_picker" step="60" onchange="handleDateInput(event, 'reward_dt')"></div>
+        </div>
+        <div class="card" style="grid-column: span 2">
+            <div class="section-title"><span>🎁 獎勵設定 (選單與映射)</span>
+                <div><button class="btn btn-sm btn-primary" onclick="switchPrizeMode('gui')">表單編輯</button><button class="btn btn-sm btn-ghost" onclick="switchPrizeMode('json')">JSON 貼上</button></div>
+            </div>
+            <div id="prize_gui_mode">
+                <div id="prize_container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"></div>
+                <button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px" onclick="addPrizeRank()">+ 新增名次區間</button>
+            </div>
+            <div id="prize_json_mode" style="display:none"><textarea id="prize_json_input" style="width:100%; height:200px"></textarea><button class="btn btn-success" style="width:100%; margin-top:10px" onclick="smartApplyPrizeJson()">✅ 套用獎勵</button></div>
+        </div>
+    </div>
+    <div class="card"><div class="section-title">單筆 JSON 預覽</div><div class="json-preview" id="preview"></div></div>
+</div>
+
+<datalist id="item_datalist"></datalist>
+<div id="import_modal" class="modal"><div class="modal-content"><h3>匯入整批 JSON</h3><textarea id="full_import_input" style="width:100%; height:300px"></textarea><div style="margin-top:15px; text-align:right"><button class="btn btn-ghost" onclick="hideImportModal()">取消</button><button class="btn btn-success" onclick="processFullImport()">確認匯入</button></div></div></div>
+
+<script>
+    const headerObj = { "round_id": "排名ID", "round_series_id": "系列ID", "show_winner_announce": "廣宣", "previous_round_id": "前一檔ID", "category": "類別", "sub_category": "子類別", "sub_category_params": "參數", "bq_update_interval": "更新頻率", "bq_procedure_id": "程序ID", "bq_extra_params": "查詢參數", "start_dt": "開始", "end_dt": "結束", "reward_dt": "置獎", "ranking_size": "人數", "priority": "權重", "score_type": "分數類型", "score_icon": "Icon", "show_score_source": "秀機台", "popup_reward_rank": "彈窗名次", "prizes": "獎勵", "template_code": "版型", "msg_title": "標題", "msg_desc": "說明", "msg_cond": "條件" };
+    let rounds = [], currentIndex = 0, currentPrizeMode = 'gui';
+    let itemLookup = {}; // Name -> ID
+    let idToName = {}; // ID -> Name
+
+    function createDefaultRound() { return { round_id: "NEW_ROUND", category: "EVENT", sub_category: "", bq_update_interval: 1800, bq_procedure_id: "Custom_Bison.f_cal_ItemCollect", bq_extra_params_raw: '"ID", 1', start_dt: 202602250000, end_dt: 202602262359, reward_dt: 202602270600, ranking_size: 100, priority: 60, score_type: "int", score_icon: "", popup_reward_rank: 10, template_code: "list", msg_title: "", msg_desc: "", msg_cond: "", prizes: [], round_series_id: "", previous_round_id: "", show_score_source: 0, show_winner_announce: 0 }; }
+
+    function handleItemFile(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const workbook = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
+            const sheet = workbook.Sheets['ItemInfoList'] || workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet);
+            itemLookup = {}; idToName = {};
+            const dl = document.getElementById('item_datalist'); dl.innerHTML = '';
+            json.forEach(row => {
+                const id = String(row.ITEM_ID || ""); const name = String(row.NOEX_道具名稱 || "");
+                if(id && name) {
+                    itemLookup[name] = id; idToName[id] = name;
+                    const opt = document.createElement('option'); opt.value = name; opt.label = id; dl.appendChild(opt);
+                }
+            });
+            document.getElementById('item_status').className = "status-tag status-ready";
+            document.getElementById('item_status').innerText = `✅ 已載入 ${json.length} 筆道具`;
+            renderPrizes(); // 重新渲染以套用 datalist
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // --- 強化映射邏輯 (使用 oninput) ---
+    function onItemIdInput(pIdx, rwIdx, inputEl) {
+        let val = inputEl.value;
+        // 如果輸入的值完全匹配某個名稱，立即替換為 ID
+        if(itemLookup[val]) {
+            val = itemLookup[val];
+            inputEl.value = val;
+        }
+        rounds[currentIndex].prizes[pIdx].reward_list[rwIdx].item_id = val;
+        
+        // 更新顯示名稱標籤
+        const badge = inputEl.parentElement.querySelector('.item-badge');
+        if(badge) badge.innerText = idToName[val] || "";
+        
+        updatePreview();
+    }
+
+    function updateRewardAmount(pIdx, rwIdx, val) {
+        rounds[currentIndex].prizes[pIdx].reward_list[rwIdx].amount = parseInt(val) || 0;
+        updatePreview();
+    }
+
+    function renderPrizes() {
+        const container = document.getElementById('prize_container');
+        container.innerHTML = '';
+        const curPrizes = rounds[currentIndex].prizes;
+        curPrizes.forEach((p, pIdx) => {
+            const div = document.createElement('div'); div.className = 'prize-item';
+            let html = `<div style="display:flex; justify-content:space-between"><strong>名次: <input type="number" style="width:60px" value="${p.rank}" oninput="rounds[currentIndex].prizes[${pIdx}].rank=parseInt(this.value);updatePreview()"></strong><button class="btn btn-danger btn-sm" onclick="rounds[currentIndex].prizes.splice(${pIdx},1);renderPrizes();updatePreview()">x</button></div>`;
+            p.reward_list.forEach((rw, rwIdx) => {
+                const itemName = idToName[rw.item_id] || "";
+                html += `<div class="reward-row">
+                    <div>
+                        <input type="text" list="item_datalist" placeholder="ID 或 名稱" value="${rw.item_id}" oninput="onItemIdInput(${pIdx}, ${rwIdx}, this)">
+                        <span class="item-badge">${itemName}</span>
+                    </div>
+                    <input type="number" placeholder="數量" value="${rw.amount}" oninput="updateRewardAmount(${pIdx}, ${rwIdx}, this.value)">
+                    <button class="btn btn-ghost btn-sm" onclick="rounds[currentIndex].prizes[${pIdx}].reward_list.splice(${rwIdx},1);renderPrizes();updatePreview()">-</button>
+                </div>`;
+            });
+            html += `<button class="btn btn-ghost btn-sm" style="width:100%; margin-top:5px" onclick="rounds[currentIndex].prizes[${pIdx}].reward_list.push({item_id:'',amount:0});renderPrizes()">+ 道具獎勵</button>`;
+            div.innerHTML = html; container.appendChild(div);
+        });
+    }
+
+    // --- 通用管理功能 ---
+    function switchPrizeMode(m) { currentPrizeMode = m; document.getElementById('prize_gui_mode').style.display = m==='gui'?'block':'none'; document.getElementById('prize_json_mode').style.display = m==='json'?'block':'none'; if(m==='json') document.getElementById('prize_json_input').value=JSON.stringify(rounds[currentIndex].prizes,null,2); else renderPrizes(); }
+    function smartApplyPrizeJson() { try { const input = document.getElementById('prize_json_input').value.replace(/,\s*([\]}])/g, '$1'); rounds[currentIndex].prizes = JSON.parse(input); switchPrizeMode('gui'); updatePreview(); } catch(e) { alert("JSON 錯誤"); } }
+    function addNewRound() { rounds.push(createDefaultRound()); currentIndex = rounds.length - 1; renderRoundList(); loadRound(); }
+    function cloneCurrentRound() { const c = JSON.parse(JSON.stringify(rounds[currentIndex])); c.round_id += "_COPY"; rounds.push(c); currentIndex = rounds.length - 1; renderRoundList(); loadRound(); }
+    function renderRoundList() { const ui = document.getElementById('round_list_ui'); ui.innerHTML = ''; rounds.forEach((r, i) => { const div = document.createElement('div'); div.className = `round-item ${i === currentIndex ? 'active' : ''}`; div.onclick = () => { currentIndex = i; renderRoundList(); loadRound(); }; div.innerHTML = `<span>${r.round_id}</span><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();rounds.splice(${i},1);currentIndex=0;renderRoundList();loadRound();">x</button>`; ui.appendChild(div); }); }
+    function loadRound() { const r = rounds[currentIndex]; document.getElementById('editing_title').innerText = `編輯：${r.round_id}`; Object.keys(r).forEach(k => { const el = document.getElementById(k); if(el && k !== 'prizes') el.value = r[k]; }); const toP = (n) => { const s = String(n); return s.length < 12 ? "" : `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(8,10)}:${s.slice(10,12)}`; }; document.getElementById('start_dt_picker').value = toP(r.start_dt); document.getElementById('end_dt_picker').value = toP(r.end_dt); document.getElementById('reward_dt_picker').value = toP(r.reward_dt); renderPrizes(); updatePreview(); }
+    function handleInput(e, f) { rounds[currentIndex][f] = e.target.value; if(f === 'round_id') renderRoundList(); updatePreview(); }
+    function handleNumInput(e, f) { rounds[currentIndex][f] = parseInt(e.target.value) || 0; updatePreview(); }
+    function handleDateInput(e, f) { rounds[currentIndex][f] = parseInt(e.target.value.replace(/[-T:]/g, '')) || 0; updatePreview(); }
+    function addPrizeRank() { rounds[currentIndex].prizes.push({rank: 1, reward_list: []}); renderPrizes(); }
+    function getCleanData(r) { let p = []; try { p = JSON.parse(`[${r.bq_extra_params_raw}]`); } catch(e) { p = r.bq_extra_params_raw.split(',').map(s => { s = s.trim(); if(s.startsWith('"')) return s.slice(1,-1); return isNaN(s)?s:Number(s); }); } const res = {...r}; delete res.bq_extra_params_raw; res.bq_extra_params = p; return res; }
+    function updatePreview() { document.getElementById('preview').innerText = JSON.stringify(getCleanData(rounds[currentIndex]), null, 2); }
+    function downloadJson() { const g = document.getElementById('group_name').value; const final = {}; final[g] = [headerObj, ...rounds.map(r => getCleanData(r))]; const b = new Blob([JSON.stringify(final, null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `${g}.json`; a.click(); }
+    function showImportModal() { document.getElementById('import_modal').style.display = 'block'; }
+    function hideImportModal() { document.getElementById('import_modal').style.display = 'none'; }
+    function processFullImport() { try { let d = JSON.parse(document.getElementById('full_import_input').value); if(!Array.isArray(d)) { const k = Object.keys(d)[0]; document.getElementById('group_name').value = k; d = d[k]; } if(d[0].round_id === "排名ID") d.shift(); rounds = d.map(x => { const r = {...createDefaultRound(), ...x}; r.bq_extra_params_raw = JSON.stringify(x.bq_extra_params).slice(1,-1); return r; }); currentIndex = 0; renderRoundList(); loadRound(); hideImportModal(); } catch(e) { alert("格式錯誤"); } }
+
+    addNewRound();
+</script>
+
+</body>
+</html>
