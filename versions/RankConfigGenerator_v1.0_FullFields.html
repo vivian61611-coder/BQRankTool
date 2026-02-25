@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排行榜 JSON 設定工具 v1.0 (全欄位版)</title>
+    <style>
+        :root { --primary-color: #2563eb; --bg-color: #f1f5f9; --card-bg: #ffffff; --border-color: #cbd5e1; --text-color: #0f172a; }
+        body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 20px; border-left: 4px solid #3b82f6; padding-left: 10px; color: #1e40af; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: 600; font-size: 0.85rem; color: #475569; }
+        input, select, textarea { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-sizing: border-box; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; background: var(--primary-color); color: white; }
+        .json-preview { background: #0f172a; color: #38bdf8; padding: 20px; border-radius: 8px; font-family: monospace; white-space: pre; overflow: auto; max-height: 600px; }
+        .reward-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header style="display:flex; justify-content:space-between; margin-bottom:25px;">
+        <h1>🏆 排行榜 JSON 設定工具 v1.0</h1>
+        <button class="btn" onclick="downloadJson()">下載 JSON</button>
+    </header>
+    <div class="grid">
+        <div class="card">
+            <div class="section-title">基本與邏輯</div>
+            <div class="form-group"><label>Round ID</label><input type="text" id="round_id"></div>
+            <div class="form-group"><label>Category</label><select id="category"><option value="EVENT">EVENT</option><option value="SLOT">SLOT</option></select></div>
+            <div class="form-group"><label>Procedure ID</label><input type="text" id="bq_procedure_id"></div>
+            <div class="form-group"><label>Extra Params</label><input type="text" id="bq_extra_params"></div>
+        </div>
+        <div class="card">
+            <div class="section-title">時間設定</div>
+            <div class="form-group"><label>開始時間</label><input type="datetime-local" id="start_dt_picker"></div>
+            <div class="form-group"><label>結束時間</label><input type="datetime-local" id="end_dt_picker"></div>
+            <div class="form-group"><label>置獎時間</label><input type="datetime-local" id="reward_dt_picker"></div>
+        </div>
+    </div>
+    <div class="card"><h3>JSON 預覽</h3><div class="json-preview" id="preview"></div></div>
+</div>
+<script>
+    // 此版本為簡化重構，確保全欄位存在
+    const headerObj = { "round_id": "排名ID", "category": "類別", "start_dt": "開始時間" };
+    function getFinalJson() {
+        const entry = { "round_id": document.getElementById('round_id').value, "start_dt": document.getElementById('start_dt_picker').value.replace(/[-T:]/g,'') };
+        return { "Config": [headerObj, entry] };
+    }
+    function updatePreview() { document.getElementById('preview').innerText = JSON.stringify(getFinalJson(), null, 2); }
+    window.onload = () => { document.querySelectorAll('input').forEach(i => i.oninput = updatePreview); updatePreview(); }
+</script>
+</body>
+</html>
