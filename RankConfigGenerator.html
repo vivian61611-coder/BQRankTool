@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排行榜 JSON 營運設定工具 (道具選單增強版)</title>
+    <title>排行榜 JSON 營運設定工具 (旗艦完整版)</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary-color: #2563eb; --secondary-color: #6366f1; --bg-color: #f1f5f9; --card-bg: #ffffff; --border-color: #cbd5e1; --text-color: #0f172a; }
         body { font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 320px; background: #1e293b; color: white; display: flex; flex-direction: column; border-right: 1px solid #0f172a; }
+        .sidebar { width: 340px; background: #1e293b; color: white; display: flex; flex-direction: column; border-right: 1px solid #0f172a; }
         .sidebar-header { padding: 20px; background: #0f172a; }
         .round-list { flex: 1; overflow-y: auto; padding: 10px; }
         .round-item { padding: 12px 15px; margin-bottom: 8px; background: #334155; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
-        .round-item.active { background: var(--primary-color); }
+        .round-item.active { background: var(--primary-color); box-shadow: 0 0 10px rgba(37,99,235,0.3); }
         .main-content { flex: 1; overflow-y: auto; padding: 25px 40px; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border-color); }
         .section-title { font-size: 1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary-color); border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -27,175 +26,223 @@
         .btn-success { background: #10b981; color: white; }
         .btn-danger { background: #dc2626; color: white; }
         .btn-ghost { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
-        .btn-sm { padding: 4px 8px; font-size: 0.7rem; }
         .json-preview { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; white-space: pre; overflow: auto; max-height: 400px; }
         .item-badge { background: #e0e7ff; color: #4338ca; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-top: 4px; display: block; font-weight: bold; }
         .prize-item { background: #f8fafc; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
         .reward-row { display: grid; grid-template-columns: 1.5fr 1fr auto; gap: 8px; margin-top: 5px; align-items: start; }
-        .status-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-top: 5px; display: inline-block; }
-        .status-ready { background: #dcfce7; color: #166534; }
-        .status-none { background: #fef2f2; color: #991b1b; }
+        .params-container { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed var(--border-color); margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
         .modal-content { background: white; margin: 5% auto; padding: 25px; border-radius: 12px; width: 65%; max-height: 85%; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-<!-- Sidebar -->
 <div class="sidebar">
     <div class="sidebar-header">
-        <h3 style="margin:0 0 10px 0">排行榜設定清單</h3>
+        <h3 style="margin:0 0 10px 0">BQRankTool 控制台</h3>
         <button class="btn btn-primary" style="width:100%" onclick="addNewRound()">+ 新增活動輪次</button>
         <button class="btn btn-secondary" style="width:100%; margin-top:12px" onclick="showImportModal()">📥 匯入正式 JSON</button>
         <button class="btn btn-secondary" style="width:100%; margin-top:10px" onclick="document.getElementById('item_file_input').click()">📊 匯入道具對照表 (.xlsx)</button>
-        <div id="item_status" class="status-tag status-none">❌ 尚未匯入道具對照表</div>
+        <div id="item_status" style="font-size:0.7rem; margin-top:5px; color:#94a3b8">❌ 尚未匯入道具表</div>
         <input type="file" id="item_file_input" style="display:none" accept=".xlsx,.csv" onchange="handleItemFile(event)">
     </div>
     <div class="round-list" id="round_list_ui"></div>
     <div style="padding:20px; border-top: 1px solid #0f172a;">
-        <div class="form-group">
-            <label style="color:#94a3b8">JSON 群組名稱</label>
-            <input type="text" id="group_name" value="260213_排行榜_設定" oninput="updatePreview()">
-        </div>
+        <div class="form-group"><label style="color:#94a3b8">JSON 群組名稱</label><input type="text" id="group_name" value="260213_排行榜_設定" oninput="updatePreview()"></div>
         <button class="btn btn-success" style="width:100%" onclick="downloadJson()">💾 匯出全部 JSON</button>
     </div>
 </div>
 
-<!-- Main Area -->
 <div class="main-content">
     <header><h2 id="editing_title">正在編輯：未命名活動</h2><button class="btn btn-ghost" onclick="cloneCurrentRound()">👯 複製目前活動</button></header>
+    
     <div class="grid">
-        <div class="card">
-            <div class="section-title">1. 基本識別與邏輯</div>
-            <div class="form-group"><label>Round ID</label><input type="text" id="round_id" oninput="handleInput(event, 'round_id')"></div>
+        <!-- 1. 核心邏輯 -->
+        <div class="card" style="grid-column: span 2">
+            <div class="section-title">1. 排行榜判斷邏輯 (Procedure & Params)</div>
             <div class="grid">
-                <div class="form-group"><label>Category</label><select id="category" onchange="handleInput(event, 'category')"><option value="EVENT">EVENT</option><option value="SLOT">SLOT</option><option value="SHOOTING">SHOOTING</option></select></div>
-                <div class="form-group"><label>Sub Category</label><input type="text" id="sub_category" oninput="handleInput(event, 'sub_category')"></div>
+                <div class="form-group">
+                    <label>Procedure ID</label>
+                    <select id="bq_procedure_id" onchange="handleProcedureChange(this.value)">
+                        <option value="">-- 請選擇判斷條件 --</option>
+                        <option value="Custom_Bison.f_cal_FishTotalWinTimes_FishID">魚種總擊殺次數</option>
+                        <option value="Custom_Bison.f_cal_SlotMaxMultiple_GameID">虎機最大倍數</option>
+                        <option value="Custom_Bison.f_cal_FishMaxMultiple_FishID">魚種最大倍數</option>
+                        <option value="Custom_Bison.f_cal_CardCollect">卡片收集進度</option>
+                        <option value="Custom_Bison.f_cal_CosmicSagaCompleteTimes">叢林之王關卡數</option>
+                        <option value="Custom_Bison.f_cal_FishMaxWin_FishID">魚機最高贏分</option>
+                        <option value="Custom_Bison.f_cal_SlotMaxWin_GameID">虎機最高贏分</option>
+                        <option value="Custom_Bison.f_cal_LiveEventsCompleteTimes">限時活動關卡數</option>
+                        <option value="Custom_Bison.f_cal_SpaceTravelPoints">太空旅行點數</option>
+                        <option value="Custom_Bison.f_cal_CardNumber">卡片收集張數</option>
+                        <option value="Custom_Bison.f_cal_SlotMaxWin_MinMult_GameID">虎機最高贏分(有上榜限制)</option>
+                        <option value="Custom_Bison.f_cal_SlotMaxMultiple_MinMult_GameID">虎機最高贏分倍數(有上榜限制)</option>
+                        <option value="CUSTOM">-- 手動輸入 ID --</option>
+                    </select>
+                    <input type="text" id="custom_procedure_input" style="display:none; margin-top:5px" placeholder="請輸入 Procedure ID" oninput="handleInput(event, 'bq_procedure_id')">
+                </div>
+                <div class="form-group"><label>Round ID (唯一識別碼)</label><input type="text" id="round_id" oninput="handleInput(event, 'round_id')"></div>
             </div>
-            <div class="form-group"><label>Procedure ID</label><input type="text" id="bq_procedure_id" oninput="handleInput(event, 'bq_procedure_id')"></div>
-            <div class="form-group"><label>BQ Params</label><input type="text" id="bq_extra_params_raw" oninput="handleInput(event, 'bq_extra_params_raw')"></div>
+            <div id="params_ui_container" class="params-container"></div>
+            <div class="form-group" style="margin-top:10px">
+                <label>Raw BQ Params (手動修正)</label>
+                <input type="text" id="bq_extra_params_raw" oninput="handleRawParamsInput(this.value)">
+            </div>
         </div>
+
+        <!-- 2. 分類與關聯 -->
         <div class="card">
-            <div class="section-title">2. 時間排程 (24H制)</div>
+            <div class="section-title">2. 分類與關聯設定</div>
+            <div class="grid">
+                <div class="form-group"><label>Category</label><select id="category" onchange="handleInput(event, 'category')"><option value="EVENT">EVENT</option><option value="SLOT">SLOT</option><option value="SHOOTING">SHOOTING</option><option value="GRANDMASTER">GRANDMASTER</option></select></div>
+                <div class="form-group"><label>Sub Category</label><input type="text" id="sub_category" oninput="handleInput(event, 'sub_category')"></div>
+                <div class="form-group"><label>Series ID (系列)</label><input type="text" id="round_series_id" oninput="handleInput(event, 'round_series_id')"></div>
+                <div class="form-group"><label>Previous ID (前一檔)</label><input type="text" id="previous_round_id" oninput="handleInput(event, 'previous_round_id')"></div>
+                <div class="form-group" style="grid-column: span 2"><label>Sub Category Params</label><input type="text" id="sub_category_params" oninput="handleInput(event, 'sub_category_params')"></div>
+            </div>
+        </div>
+
+        <!-- 3. 時間與顯示控制 -->
+        <div class="card">
+            <div class="section-title">3. 時間與顯示控制</div>
             <div class="grid">
                 <div class="form-group"><label>開始時間</label><input type="datetime-local" id="start_dt_picker" step="60" onchange="handleDateInput(event, 'start_dt')"></div>
                 <div class="form-group"><label>結束時間</label><input type="datetime-local" id="end_dt_picker" step="60" onchange="handleDateInput(event, 'end_dt')"></div>
+                <div class="form-group"><label>置獎時間</label><input type="datetime-local" id="reward_dt_picker" step="60" onchange="handleDateInput(event, 'reward_dt')"></div>
+                <div class="form-group"><label>優先序 (Priority)</label><input type="number" id="priority" oninput="handleNumInput(event, 'priority')"></div>
+                <div class="form-group"><label>顯示廣宣 (Winner Announce)</label><select id="show_winner_announce" onchange="handleNumInput(event, 'show_winner_announce')"><option value="0">否 (0)</option><option value="1">是 (1)</option></select></div>
+                <div class="form-group"><label>榜單人數 (Size)</label><input type="number" id="ranking_size" oninput="handleNumInput(event, 'ranking_size')"></div>
             </div>
-            <div class="form-group"><label>置獎時間</label><input type="datetime-local" id="reward_dt_picker" step="60" onchange="handleDateInput(event, 'reward_dt')"></div>
         </div>
+
+        <!-- 4. 數值與訊息 -->
         <div class="card" style="grid-column: span 2">
-            <div class="section-title"><span>🎁 獎勵設定 (選單與映射)</span>
+            <div class="section-title">4. 數值格式與介面訊息</div>
+            <div class="grid">
+                <div class="form-group"><label>分數類型</label><select id="score_type" onchange="handleInput(event, 'score_type')"><option value="int">int</option><option value="multiplier">multiplier</option><option value="coin">coin</option></select></div>
+                <div class="form-group"><label>分數 Icon ID</label><input type="text" id="score_icon" oninput="handleInput(event, 'score_icon')"></div>
+                <div class="form-group"><label>秀機台 Icon</label><select id="show_score_source" onchange="handleNumInput(event, 'show_score_source')"><option value="0">否 (0)</option><option value="1">是 (1)</option></select></div>
+                <div class="form-group"><label>彈窗置獎名次</label><input type="number" id="popup_reward_rank" oninput="handleNumInput(event, 'popup_reward_rank')"></div>
+                <div class="form-group"><label>版型 (Template)</label><input type="text" id="template_code" oninput="handleInput(event, 'template_code')"></div>
+                <div class="form-group"><label>訊息：標題</label><input type="text" id="msg_title" oninput="handleInput(event, 'msg_title')"></div>
+            </div>
+            <div class="grid" style="margin-top:10px">
+                <div class="form-group"><label>訊息：說明 (Desc)</label><textarea id="msg_desc" rows="2" oninput="handleInput(event, 'msg_desc')"></textarea></div>
+                <div class="form-group"><label>訊息：條件 (Cond)</label><textarea id="msg_cond" rows="2" oninput="handleInput(event, 'msg_cond')"></textarea></div>
+            </div>
+        </div>
+
+        <!-- 5. 獎勵設定 (具選單功能) -->
+        <div class="card" style="grid-column: span 2">
+            <div class="section-title"><span>🎁 5. 獎勵設定 (Prizes)</span>
                 <div><button class="btn btn-sm btn-primary" onclick="switchPrizeMode('gui')">表單編輯</button><button class="btn btn-sm btn-ghost" onclick="switchPrizeMode('json')">JSON 貼上</button></div>
             </div>
-            <div id="prize_gui_mode">
-                <div id="prize_container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"></div>
-                <button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px" onclick="addPrizeRank()">+ 新增名次區間</button>
-            </div>
-            <div id="prize_json_mode" style="display:none"><textarea id="prize_json_input" style="width:100%; height:200px"></textarea><button class="btn btn-success" style="width:100%; margin-top:10px" onclick="smartApplyPrizeJson()">✅ 套用獎勵</button></div>
+            <div id="prize_gui_mode"><div id="prize_container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;"></div><button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px" onclick="addPrizeRank()">+ 新增名次區間</button></div>
+            <div id="prize_json_mode" style="display:none"><textarea id="prize_json_input" style="width:100%; height:200px; font-family:monospace"></textarea><button class="btn btn-success" style="width:100%; margin-top:10px" onclick="smartApplyPrizeJson()">✅ 套用獎勵</button></div>
         </div>
     </div>
     <div class="card"><div class="section-title">單筆 JSON 預覽</div><div class="json-preview" id="preview"></div></div>
 </div>
 
 <datalist id="item_datalist"></datalist>
-<div id="import_modal" class="modal"><div class="modal-content"><h3>匯入整批 JSON</h3><textarea id="full_import_input" style="width:100%; height:300px"></textarea><div style="margin-top:15px; text-align:right"><button class="btn btn-ghost" onclick="hideImportModal()">取消</button><button class="btn btn-success" onclick="processFullImport()">確認匯入</button></div></div></div>
+<div id="import_modal" class="modal"><div class="modal-content"><h3>匯入整批 JSON</h3><textarea id="full_import_input" style="width:100%; height:300px; font-family:monospace"></textarea><div style="margin-top:15px; text-align:right"><button class="btn btn-ghost" onclick="hideImportModal()">取消</button><button class="btn btn-success" onclick="processFullImport()">確認匯入</button></div></div></div>
 
 <script>
+    const procedureMap = {
+        "Custom_Bison.f_cal_FishTotalWinTimes_FishID": [ {l:"魚種ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxMultiple_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_FishMaxMultiple_FishID": [ {l:"魚種ID", t:"string"}, {l:"指定廳館", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ],
+        "Custom_Bison.f_cal_CardCollect": [ {l:"卡冊ID", t:"string"}, {l:"最低卡片數", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_CosmicSagaCompleteTimes": [ {l:"難度", t:"string"}, {l:"最低關卡", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_FishMaxWin_FishID": [ {l:"魚種ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxWin_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_LiveEventsCompleteTimes": [ {l:"活動名稱", t:"string"}, {l:"最低關卡", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SpaceTravelPoints": [ {l:"最低點數", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_CardNumber": [ {l:"卡冊ID", t:"string"}, {l:"最低卡片數", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxWin_MinMult_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxMultiple_MinMult_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ]
+    };
     const headerObj = { "round_id": "排名ID", "round_series_id": "系列ID", "show_winner_announce": "廣宣", "previous_round_id": "前一檔ID", "category": "類別", "sub_category": "子類別", "sub_category_params": "參數", "bq_update_interval": "更新頻率", "bq_procedure_id": "程序ID", "bq_extra_params": "查詢參數", "start_dt": "開始", "end_dt": "結束", "reward_dt": "置獎", "ranking_size": "人數", "priority": "權重", "score_type": "分數類型", "score_icon": "Icon", "show_score_source": "秀機台", "popup_reward_rank": "彈窗名次", "prizes": "獎勵", "template_code": "版型", "msg_title": "標題", "msg_desc": "說明", "msg_cond": "條件" };
-    let rounds = [], currentIndex = 0, currentPrizeMode = 'gui';
-    let itemLookup = {}; // Name -> ID
-    let idToName = {}; // ID -> Name
+    let rounds = [], currentIndex = 0, itemLookup = {}, idToName = {};
 
-    function createDefaultRound() { return { round_id: "NEW_ROUND", category: "EVENT", sub_category: "", bq_update_interval: 1800, bq_procedure_id: "Custom_Bison.f_cal_ItemCollect", bq_extra_params_raw: '"ID", 1', start_dt: 202602250000, end_dt: 202602262359, reward_dt: 202602270600, ranking_size: 100, priority: 60, score_type: "int", score_icon: "", popup_reward_rank: 10, template_code: "list", msg_title: "", msg_desc: "", msg_cond: "", prizes: [], round_series_id: "", previous_round_id: "", show_score_source: 0, show_winner_announce: 0 }; }
+    function createDefaultRound() { return { round_id: "NEW_ROUND", round_series_id: "", previous_round_id: "", category: "EVENT", sub_category: "", sub_category_params: "", bq_update_interval: 1800, bq_procedure_id: "", bq_extra_params_raw: '"ID", 1', start_dt: 202602250000, end_dt: 202602262359, reward_dt: 202602270600, ranking_size: 100, priority: 60, score_type: "int", score_icon: "", show_score_source: 0, show_winner_announce: 0, popup_reward_rank: 10, template_code: "list", msg_title: "", msg_desc: "", msg_cond: "", prizes: [] }; }
+
+    function handleProcedureChange(v) { const c = document.getElementById('custom_procedure_input'); if(v === 'CUSTOM'){ c.style.display='block'; rounds[currentIndex].bq_procedure_id = c.value; } else { c.style.display='none'; rounds[currentIndex].bq_procedure_id = v; } renderParamsUI(v); updatePreview(); }
+    function renderParamsUI(pId) { const c = document.getElementById('params_ui_container'); c.innerHTML = ''; const s = procedureMap[pId]; if(!s){ c.innerHTML = '<div style="grid-column:span 2;color:#94a3b8;font-size:0.8rem">請選擇條件以設定參數</div>'; return; } let vals = []; try { vals = JSON.parse(`[${rounds[currentIndex].bq_extra_params_raw}]`); } catch(e){} s.forEach((f, i) => { const d = document.createElement('div'); d.className = 'form-group'; d.innerHTML = `<label>${f.l} (${f.t})</label><input type="${f.t==='number'?'number':'text'}" value="${vals[i]!==undefined?vals[i]:''}" oninput="updateParamValue(${i}, this.value, '${f.t}')">`; c.appendChild(d); }); }
+    function updateParamValue(i, v, t) { let vals = []; try { vals = JSON.parse(`[${rounds[currentIndex].bq_extra_params_raw}]`); } catch(e){} vals[i] = t === 'number' ? Number(v) : v; rounds[currentIndex].bq_extra_params_raw = vals.map(x => typeof x === 'string' ? `"${x}"` : x).join(', '); document.getElementById('bq_extra_params_raw').value = rounds[currentIndex].bq_extra_params_raw; updatePreview(); }
+    function handleRawParamsInput(v) { rounds[currentIndex].bq_extra_params_raw = v; renderParamsUI(rounds[currentIndex].bq_procedure_id); updatePreview(); }
 
     function handleItemFile(e) {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-            const workbook = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
-            const sheet = workbook.Sheets['ItemInfoList'] || workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet);
-            itemLookup = {}; idToName = {};
+        const f = e.target.files[0]; const reader = new FileReader();
+        reader.onload = (evt) => {
+            const wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array'});
+            const sh = wb.Sheets['ItemInfoList'] || wb.Sheets[wb.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sh); itemLookup = {}; idToName = {};
             const dl = document.getElementById('item_datalist'); dl.innerHTML = '';
-            json.forEach(row => {
-                const id = String(row.ITEM_ID || ""); const name = String(row.NOEX_道具名稱 || "");
-                if(id && name) {
-                    itemLookup[name] = id; idToName[id] = name;
-                    const opt = document.createElement('option'); opt.value = name; opt.label = id; dl.appendChild(opt);
-                }
+            json.forEach(x => {
+                const id = String(x.ITEM_ID||""), nm = String(x.NOEX_道具名稱||"");
+                if(id&&nm){ itemLookup[nm]=id; idToName[id]=nm; const o=document.createElement('option'); o.value=nm; o.label=id; dl.appendChild(o); }
             });
-            document.getElementById('item_status').className = "status-tag status-ready";
             document.getElementById('item_status').innerText = `✅ 已載入 ${json.length} 筆道具`;
-            renderPrizes(); // 重新渲染以套用 datalist
+            renderPrizes();
         };
-        reader.readAsArrayBuffer(file);
+        reader.readAsArrayBuffer(f);
     }
 
-    // --- 強化映射邏輯 (使用 oninput) ---
-    function onItemIdInput(pIdx, rwIdx, inputEl) {
-        let val = inputEl.value;
-        // 如果輸入的值完全匹配某個名稱，立即替換為 ID
-        if(itemLookup[val]) {
-            val = itemLookup[val];
-            inputEl.value = val;
-        }
-        rounds[currentIndex].prizes[pIdx].reward_list[rwIdx].item_id = val;
-        
-        // 更新顯示名稱標籤
-        const badge = inputEl.parentElement.querySelector('.item-badge');
-        if(badge) badge.innerText = idToName[val] || "";
-        
-        updatePreview();
-    }
-
-    function updateRewardAmount(pIdx, rwIdx, val) {
-        rounds[currentIndex].prizes[pIdx].reward_list[rwIdx].amount = parseInt(val) || 0;
-        updatePreview();
+    function onItemIdInput(pIdx, rwIdx, el) { 
+        let v = el.value; 
+        if(itemLookup[v]){ v = itemLookup[v]; el.value = v; } 
+        rounds[currentIndex].prizes[pIdx].reward_list[rwIdx].item_id = v; 
+        const b = el.parentElement.querySelector('.item-badge'); 
+        if(b) b.innerText = idToName[v] || ""; 
+        updatePreview(); 
     }
 
     function renderPrizes() {
-        const container = document.getElementById('prize_container');
-        container.innerHTML = '';
-        const curPrizes = rounds[currentIndex].prizes;
-        curPrizes.forEach((p, pIdx) => {
-            const div = document.createElement('div'); div.className = 'prize-item';
-            let html = `<div style="display:flex; justify-content:space-between"><strong>名次: <input type="number" style="width:60px" value="${p.rank}" oninput="rounds[currentIndex].prizes[${pIdx}].rank=parseInt(this.value);updatePreview()"></strong><button class="btn btn-danger btn-sm" onclick="rounds[currentIndex].prizes.splice(${pIdx},1);renderPrizes();updatePreview()">x</button></div>`;
+        const c = document.getElementById('prize_container'); c.innerHTML = '';
+        rounds[currentIndex].prizes.forEach((p, pIdx) => {
+            const d = document.createElement('div'); d.className = 'prize-item';
+            let h = `<div style="display:flex; justify-content:space-between"><strong>名次: <input type="number" style="width:60px" value="${p.rank}" oninput="rounds[currentIndex].prizes[${pIdx}].rank=parseInt(this.value);updatePreview()"></strong><button class="btn btn-danger btn-sm" onclick="rounds[currentIndex].prizes.splice(${pIdx},1);renderPrizes();updatePreview()">x</button></div>`;
             p.reward_list.forEach((rw, rwIdx) => {
-                const itemName = idToName[rw.item_id] || "";
-                html += `<div class="reward-row">
+                h += `<div class="reward-row">
                     <div>
-                        <input type="text" list="item_datalist" placeholder="ID 或 名稱" value="${rw.item_id}" oninput="onItemIdInput(${pIdx}, ${rwIdx}, this)">
-                        <span class="item-badge">${itemName}</span>
+                        <input type="text" list="item_datalist" placeholder="選單搜尋..." value="${rw.item_id}" oninput="onItemIdInput(${pIdx}, ${rwIdx}, this)">
+                        <span class="item-badge">${idToName[rw.item_id]||""}</span>
                     </div>
-                    <input type="number" placeholder="數量" value="${rw.amount}" oninput="updateRewardAmount(${pIdx}, ${rwIdx}, this.value)">
+                    <input type="number" value="${rw.amount}" oninput="rounds[currentIndex].prizes[${pIdx}].reward_list[${rwIdx}].amount=parseInt(this.value);updatePreview()">
                     <button class="btn btn-ghost btn-sm" onclick="rounds[currentIndex].prizes[${pIdx}].reward_list.splice(${rwIdx},1);renderPrizes();updatePreview()">-</button>
                 </div>`;
             });
-            html += `<button class="btn btn-ghost btn-sm" style="width:100%; margin-top:5px" onclick="rounds[currentIndex].prizes[${pIdx}].reward_list.push({item_id:'',amount:0});renderPrizes()">+ 道具獎勵</button>`;
-            div.innerHTML = html; container.appendChild(div);
+            h += `<button class="btn btn-ghost btn-sm" style="width:100%; margin-top:5px" onclick="rounds[currentIndex].prizes[${pIdx}].reward_list.push({item_id:'',amount:0});renderPrizes()">+ 獎勵</button>`;
+            d.innerHTML = h; c.appendChild(d);
         });
     }
 
-    // --- 通用管理功能 ---
-    function switchPrizeMode(m) { currentPrizeMode = m; document.getElementById('prize_gui_mode').style.display = m==='gui'?'block':'none'; document.getElementById('prize_json_mode').style.display = m==='json'?'block':'none'; if(m==='json') document.getElementById('prize_json_input').value=JSON.stringify(rounds[currentIndex].prizes,null,2); else renderPrizes(); }
-    function smartApplyPrizeJson() { try { const input = document.getElementById('prize_json_input').value.replace(/,\s*([\]}])/g, '$1'); rounds[currentIndex].prizes = JSON.parse(input); switchPrizeMode('gui'); updatePreview(); } catch(e) { alert("JSON 錯誤"); } }
+    function switchPrizeMode(m) { if(m==='json') document.getElementById('prize_json_input').value=JSON.stringify(rounds[currentIndex].prizes,null,2); document.getElementById('prize_gui_mode').style.display=m==='gui'?'block':'none'; document.getElementById('prize_json_mode').style.display=m==='json'?'block':'none'; if(m==='gui') renderPrizes(); }
+    function smartApplyPrizeJson() { try { rounds[currentIndex].prizes = JSON.parse(document.getElementById('prize_json_input').value.replace(/,\s*([\]}])/g, '$1')); switchPrizeMode('gui'); renderPrizes(); updatePreview(); } catch(e){alert("JSON 錯誤");} }
     function addNewRound() { rounds.push(createDefaultRound()); currentIndex = rounds.length - 1; renderRoundList(); loadRound(); }
     function cloneCurrentRound() { const c = JSON.parse(JSON.stringify(rounds[currentIndex])); c.round_id += "_COPY"; rounds.push(c); currentIndex = rounds.length - 1; renderRoundList(); loadRound(); }
-    function renderRoundList() { const ui = document.getElementById('round_list_ui'); ui.innerHTML = ''; rounds.forEach((r, i) => { const div = document.createElement('div'); div.className = `round-item ${i === currentIndex ? 'active' : ''}`; div.onclick = () => { currentIndex = i; renderRoundList(); loadRound(); }; div.innerHTML = `<span>${r.round_id}</span><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();rounds.splice(${i},1);currentIndex=0;renderRoundList();loadRound();">x</button>`; ui.appendChild(div); }); }
-    function loadRound() { const r = rounds[currentIndex]; document.getElementById('editing_title').innerText = `編輯：${r.round_id}`; Object.keys(r).forEach(k => { const el = document.getElementById(k); if(el && k !== 'prizes') el.value = r[k]; }); const toP = (n) => { const s = String(n); return s.length < 12 ? "" : `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(8,10)}:${s.slice(10,12)}`; }; document.getElementById('start_dt_picker').value = toP(r.start_dt); document.getElementById('end_dt_picker').value = toP(r.end_dt); document.getElementById('reward_dt_picker').value = toP(r.reward_dt); renderPrizes(); updatePreview(); }
+    function renderRoundList() { const ui = document.getElementById('round_list_ui'); ui.innerHTML = ''; rounds.forEach((r, i) => { const d = document.createElement('div'); d.className = `round-item ${i === currentIndex ? 'active' : ''}`; d.onclick = () => { currentIndex = i; renderRoundList(); loadRound(); }; d.innerHTML = `<span>${r.round_id}</span><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();rounds.splice(${i},1);currentIndex=0;renderRoundList();loadRound();">x</button>`; ui.appendChild(d); }); }
+    function loadRound() {
+        const r = rounds[currentIndex]; document.getElementById('editing_title').innerText = `編輯：${r.round_id}`;
+        Object.keys(r).forEach(k => { const el = document.getElementById(k); if(el && k!=='prizes') el.value = r[k]; });
+        document.getElementById('bq_procedure_id').value = procedureMap[r.bq_procedure_id] ? r.bq_procedure_id : (r.bq_procedure_id ? "CUSTOM" : "");
+        const toP = (n) => { const s = String(n); return s.length < 12 ? "" : `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T${s.slice(8,10)}:${s.slice(10,12)}`; };
+        document.getElementById('start_dt_picker').value = toP(r.start_dt); document.getElementById('end_dt_picker').value = toP(r.end_dt); document.getElementById('reward_dt_picker').value = toP(r.reward_dt);
+        renderParamsUI(r.bq_procedure_id); renderPrizes(); updatePreview();
+    }
     function handleInput(e, f) { rounds[currentIndex][f] = e.target.value; if(f === 'round_id') renderRoundList(); updatePreview(); }
     function handleNumInput(e, f) { rounds[currentIndex][f] = parseInt(e.target.value) || 0; updatePreview(); }
     function handleDateInput(e, f) { rounds[currentIndex][f] = parseInt(e.target.value.replace(/[-T:]/g, '')) || 0; updatePreview(); }
     function addPrizeRank() { rounds[currentIndex].prizes.push({rank: 1, reward_list: []}); renderPrizes(); }
-    function getCleanData(r) { let p = []; try { p = JSON.parse(`[${r.bq_extra_params_raw}]`); } catch(e) { p = r.bq_extra_params_raw.split(',').map(s => { s = s.trim(); if(s.startsWith('"')) return s.slice(1,-1); return isNaN(s)?s:Number(s); }); } const res = {...r}; delete res.bq_extra_params_raw; res.bq_extra_params = p; return res; }
+    function getCleanData(r) { let p = []; const raw = r.bq_extra_params_raw || ""; try { if(raw.trim().startsWith('[')) p = JSON.parse(raw); else p = JSON.parse(`[${raw}]`); } catch(e) { p = raw.split(',').map(s => { s = s.trim(); if(s.startsWith('"')) return s.slice(1,-1); return isNaN(s)||s===""?s:Number(s); }); } const res = {...r}; delete res.bq_extra_params_raw; res.bq_extra_params = p; return res; }
     function updatePreview() { document.getElementById('preview').innerText = JSON.stringify(getCleanData(rounds[currentIndex]), null, 2); }
-    function downloadJson() { const g = document.getElementById('group_name').value; const final = {}; final[g] = [headerObj, ...rounds.map(r => getCleanData(r))]; const b = new Blob([JSON.stringify(final, null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `${g}.json`; a.click(); }
+    function downloadJson() { const g = document.getElementById('group_name').value; const f = {}; f[g] = [headerObj, ...rounds.map(r => getCleanData(r))]; const b = new Blob([JSON.stringify(f, null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `${g}.json`; a.click(); }
     function showImportModal() { document.getElementById('import_modal').style.display = 'block'; }
     function hideImportModal() { document.getElementById('import_modal').style.display = 'none'; }
-    function processFullImport() { try { let d = JSON.parse(document.getElementById('full_import_input').value); if(!Array.isArray(d)) { const k = Object.keys(d)[0]; document.getElementById('group_name').value = k; d = d[k]; } if(d[0].round_id === "排名ID") d.shift(); rounds = d.map(x => { const r = {...createDefaultRound(), ...x}; r.bq_extra_params_raw = JSON.stringify(x.bq_extra_params).slice(1,-1); return r; }); currentIndex = 0; renderRoundList(); loadRound(); hideImportModal(); } catch(e) { alert("格式錯誤"); } }
+    function processFullImport() { try { let d = JSON.parse(document.getElementById('full_import_input').value); if(!Array.isArray(d)) { const k = Object.keys(d)[0]; document.getElementById('group_name').value = k; d = d[k]; } if(d[0].round_id === "排名ID") d.shift(); rounds = d.map(x => { const r = {...createDefaultRound(), ...x}; r.bq_extra_params_raw = (x.bq_extra_params || []).map(v => typeof v === 'string' ? `"${v}"` : v).join(', '); return r; }); currentIndex = 0; renderRoundList(); loadRound(); hideImportModal(); } catch(e) { alert("格式錯誤"); } }
 
     addNewRound();
 </script>
-
 </body>
 </html>
