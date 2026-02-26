@@ -98,6 +98,9 @@
                         <option value="Custom_Bison.f_cal_CardNumber">卡片收集張數</option>
                         <option value="Custom_Bison.f_cal_SlotMaxWin_MinMult_GameID">虎機最高贏分(有限制)</option>
                         <option value="Custom_Bison.f_cal_SlotMaxMultiple_MinMult_GameID">虎機最高贏分倍數(有限制)</option>
+                        <option value="Custom_Bison.f_cal_ItemCollect">道具收集數量</option>
+                        <option value="Custom_Bison.f_cal_GrandMaster">神仙打架</option>
+                        <option value="Custom_Bison.f_cal_CrosswordPuzzleCompletetimes">填字遊戲題數</option>
                         <option value="CUSTOM">-- 手動輸入 ID --</option>
                     </select>
                     <input type="text" id="custom_procedure_input" style="display:none; margin-top:5px" placeholder="請輸入 ID" oninput="handleInput(event, 'bq_procedure_id')">
@@ -173,7 +176,23 @@
 <script>
     let itemData = []; // 由 Excel 匯入填充
 
-    const procedureMap = { "Custom_Bison.f_cal_FishTotalWinTimes_FishID": [ {l:"魚種ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_SlotMaxMultiple_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_FishMaxMultiple_FishID": [ {l:"魚種ID", t:"string"}, {l:"指定廳館", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ], "Custom_Bison.f_cal_CardCollect": [ {l:"卡冊ID", t:"string"}, {l:"最低卡片數", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_CosmicSagaCompleteTimes": [ {l:"難度", t:"string"}, {l:"最低關卡", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_FishMaxWin_FishID": [ {l:"魚種ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_SlotMaxWin_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_LiveEventsCompleteTimes": [ {l:"活動名稱", t:"string"}, {l:"最低關卡", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_SpaceTravelPoints": [ {l:"最低點數", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_CardNumber": [ {l:"卡冊ID", t:"string"}, {l:"最低卡片數", t:"number"}, {l:"最低等級", t:"number"} ], "Custom_Bison.f_cal_SlotMaxWin_MinMult_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ], "Custom_Bison.f_cal_SlotMaxMultiple_MinMult_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ] };
+    const procedureMap = {
+        "Custom_Bison.f_cal_FishTotalWinTimes_FishID": [ {l:"魚種ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxMultiple_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_FishMaxMultiple_FishID": [ {l:"魚種ID", t:"string"}, {l:"指定廳館", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ],
+        "Custom_Bison.f_cal_CardCollect": [ {l:"卡冊ID", t:"string"}, {l:"最低卡片數", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_CosmicSagaCompleteTimes": [ {l:"難度", t:"string"}, {l:"最低關卡", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_FishMaxWin_FishID": [ {l:"魚種ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxWin_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_LiveEventsCompleteTimes": [ {l:"活動名稱", t:"string"}, {l:"最低關卡", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SpaceTravelPoints": [ {l:"最低點數", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_CardNumber": [ {l:"卡冊ID", t:"string"}, {l:"最低卡片數", t:"number"}, {l:"最低等級", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxWin_MinMult_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ],
+        "Custom_Bison.f_cal_SlotMaxMultiple_MinMult_GameID": [ {l:"遊戲ID", t:"string"}, {l:"最低押注段", t:"number"}, {l:"最低等級", t:"number"}, {l:"最低上榜倍數", t:"number"} ],
+        "Custom_Bison.f_cal_ItemCollect": [ {l:"道具ID", t:"string"}, {l:"最低等級限制", t:"number"} ],
+        "Custom_Bison.f_cal_GrandMaster": [ {l:"最低等級限制", t:"number"} ],
+        "Custom_Bison.f_cal_CrosswordPuzzleCompletetimes": [ {l:"最低等級限制", t:"number"} ]
+    };
     let rounds = [], currentIndex = 0;
     function createDefaultRound() { return { round_id: "NEW_ROUND", round_series_id: "", show_winner_announce: 0, previous_round_id: "", category: "SLOT", sub_category: "", sub_category_params: "", bq_update_interval: 1800, bq_procedure_id: "", bq_extra_params_raw: '', start_dt: 202602250000, end_dt: 202602262359, reward_dt: 202602270600, ranking_size: 100, priority: 60, score_type: "int", score_icon: "", show_score_source: 0, popup_reward_rank: 10, template_code: "list", msg_title: "", msg_desc: "", msg_cond: "", prizes: [] }; }
 
